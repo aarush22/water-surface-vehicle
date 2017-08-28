@@ -7,7 +7,7 @@ RF24 radio(7, 4);
 
 const byte Addr[6] = "00001";
 
-// define two tasks for Blink & AnalogRead
+// define two tasks for Transmitter and Receiver
 void Receive( void *pvParameters );
 void Transmit( void *pvParameters );
 
