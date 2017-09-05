@@ -14,6 +14,59 @@ void Transmission( void *pvParameters );
 
 QueueHandle_t dataQueue;
 
+/************************* Queue Implementation **************************/
+
+struct node
+{
+    byte data=0;
+    struct node *link;
+};
+
+int count=0;
+
+struct node *front;
+struct node *rear;
+
+void insertRear(byte val)
+{
+  struct node *temp;
+  temp = (struct node*)malloc(sizeof(struct node));
+  temp->link = NULL;
+  temp->data = val;
+  if (rear  ==  NULL)
+  {
+    front = rear = temp;
+  }
+  else
+  {
+    rear->link = temp;
+    rear = temp;
+  }
+  count++;
+}
+
+byte getFront()
+{
+  struct node *temp;
+  temp=front;
+  byte val=front->data;
+  front=front->link;
+  free(temp);
+  count--;
+  return val;
+}
+
+int checkQueue()
+{
+  if(front!=NULL && count>=4)
+    return 1;
+  else
+    return 0;
+  
+}
+
+/************************* Queue Implementation **************************/
+
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -39,7 +92,7 @@ void setup() {
     ,  (const portCHAR *) "Transmit and Receive"
     ,  256  // Stack size
     ,  NULL
-    ,  3  // Priority
+    ,  2  // Priority
     ,  NULL );
 
     xTaskCreate(
@@ -84,7 +137,12 @@ void Transmission(void *pvParameters)  // This is a data transmitting and receiv
     
     radio.openWritingPipe(Addr);
     radio.stopListening();
-    if(xQueueReceive( dataQueue, data_tx, portMAX_DELAY )){
+    //if(xQueueReceive( dataQueue, data_tx, portMAX_DELAY )){
+    if( checkQueue() ){
+      data_tx[0] = getFront();
+      data_tx[1] = getFront();
+      data_tx[2] = getFront();
+      data_tx[3] = getFront();
       radio.write(data_tx, 4);
       Serial.print((data_tx[0]*255)+data_tx[1]);
       Serial.print("  :  ");
@@ -92,7 +150,7 @@ void Transmission(void *pvParameters)  // This is a data transmitting and receiv
     }
     else{
       taskYIELD();
-     }
+    }
     delay(15);
     }
 }
@@ -111,6 +169,10 @@ void Joystick_read(void *pvParameters)  // This is a joystick value reading task
     data[1] =Left_ctr-(data[0]*255);
     data[2] =Right_ctr/255;
     data[3] =Right_ctr-(data[2]*255);
-    xQueueSend(dataQueue,data,portMAX_DELAY);
+    insertRear(data[0]);
+    insertRear(data[1]);
+    insertRear(data[2]);
+    insertRear(data[3]);
+    //xQueueSend(dataQueue,data,portMAX_DELAY);
   }
 }
