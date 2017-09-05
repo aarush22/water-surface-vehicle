@@ -8,64 +8,11 @@ RF24 radio(7, 4);
 
 const byte Addr[6] = "00001";
 
-// define two tasks for transmission and reading values
+// define two tasks for Blink & AnalogRead
 void Joystick_read( void *pvParameters );
 void Transmission( void *pvParameters );
 
 QueueHandle_t dataQueue;
-
-/************************* Queue Implementation **************************/
-
-struct node
-{
-    byte data=0;
-    struct node *link;
-};
-
-int count=0;
-
-struct node *front;
-struct node *rear;
-
-void insertRear(byte val)
-{
-  struct node *temp;
-  temp = (struct node*)malloc(sizeof(struct node));
-  temp->link = NULL;
-  temp->data = val;
-  if (rear  ==  NULL)
-  {
-    front = rear = temp;
-  }
-  else
-  {
-    rear->link = temp;
-    rear = temp;
-  }
-  count++;
-}
-
-byte getFront()
-{
-  struct node *temp;
-  temp=front;
-  byte val=front->data;
-  front=front->link;
-  free(temp);
-  count--;
-  return val;
-}
-
-int checkQueue()
-{
-  if(front!=NULL && count>=4)
-    return 1;
-  else
-    return 0;
-  
-}
-
-/************************* Queue Implementation **************************/
 
 
 // the setup function runs once when you press reset or power the board
@@ -85,7 +32,7 @@ void setup() {
   radio.begin();
   radio.setRetries(15, 15);
 
-  dataQueue = xQueueCreate( 10, 4 );
+  dataQueue = xQueueCreate( 5, 4 );
 
   xTaskCreate(
     Transmission
@@ -97,7 +44,7 @@ void setup() {
 
     xTaskCreate(
     Joystick_read
-    ,  (const portCHAR *)"Read Joystick" 
+    ,  (const portCHAR *)"Read Joystick"   // A name just for humans
     ,  256  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
     ,  2 // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
@@ -118,14 +65,15 @@ void loop()
 
 
 
-void Transmission(void *pvParameters)  // This is a data transmitting and receiving task.
+void Transmission(void *pvParameters)  // This is a task.
 {
   byte data_tx[4]={0,0,0,0};
   byte data_rx=0;
   for (;;) // A Task shall never return or exit.
   {
+    //Serial.print("R");
     // Open a pipe for reading
-    radio.openReadingPipe(0, Addr);
+    /*radio.openReadingPipe(0, Addr);
     radio.startListening();
     if (radio.available())
      {
@@ -133,29 +81,21 @@ void Transmission(void *pvParameters)  // This is a data transmitting and receiv
        Serial.print("RX from rx:  ");
        Serial.println(data_rx);
      }
-    delay(15);
+    delay(15);*/
     
     radio.openWritingPipe(Addr);
     radio.stopListening();
-    //if(xQueueReceive( dataQueue, data_tx, portMAX_DELAY )){
-    if( checkQueue() ){
-      data_tx[0] = getFront();
-      data_tx[1] = getFront();
-      data_tx[2] = getFront();
-      data_tx[3] = getFront();
+    if(xQueueReceive( dataQueue, data_tx, portMAX_DELAY )){
       radio.write(data_tx, 4);
       Serial.print((data_tx[0]*255)+data_tx[1]);
       Serial.print("  :  ");
       Serial.println((data_tx[2]*255)+data_tx[3]);
     }
-    else{
-      taskYIELD();
-    }
     delay(15);
     }
 }
 
-void Joystick_read(void *pvParameters)  // This is a joystick value reading task.
+void Joystick_read(void *pvParameters)  // This is a task.
 {
   byte data[4] = {0,0,0,0};
   int Left_ctr =0;
@@ -169,10 +109,6 @@ void Joystick_read(void *pvParameters)  // This is a joystick value reading task
     data[1] =Left_ctr-(data[0]*255);
     data[2] =Right_ctr/255;
     data[3] =Right_ctr-(data[2]*255);
-    insertRear(data[0]);
-    insertRear(data[1]);
-    insertRear(data[2]);
-    insertRear(data[3]);
-    //xQueueSend(dataQueue,data,portMAX_DELAY);
+    xQueueSend(dataQueue,data,portMAX_DELAY);
   }
 }
