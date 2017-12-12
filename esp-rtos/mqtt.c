@@ -220,8 +220,8 @@ static void  wifi_tasks(void *pvParameters)
     uint8_t status  = 0;
     uint8_t retries = 30;
     struct sdk_station_config config = {
-        .ssid = "batPC",
-        .password = "5z3W41G1",
+        .ssid = "batman",
+        .password = "wsvbatman",
     };
 
     //printf("WiFi: connecting to WiFi\n\r");
